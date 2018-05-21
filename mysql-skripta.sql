@@ -1,9 +1,13 @@
-drop table if exists dimenzija_vrijeme;
+# mysql skripta za generiranje vremenske dimenzije
+# mysql script for generating time dimension
+# @ matko soric
+
+DROP TABLE IF EXISTS dimenzija_vrijeme;
 
 CREATE TABLE dimenzija_vrijeme(
 	id int,
-    date_key date ,
-	DAY_STRING CHAR(8) , 
+    DATUM_KEY date ,
+	DAN_STRING CHAR(8) , 
 	DAN_U_TJEDNU_NAZIV CHAR(44) , 
 	DAN_U_TJEDNU_NAZIV_KRATKI CHAR(12) , 
 	DAN_U_TJEDNU_NAZIV_BROJ tinyint,
@@ -27,22 +31,19 @@ CREATE TABLE dimenzija_vrijeme(
     GODINA_POLOVICA tinyint,
     GODINA_POLOVICA_NAZIV CHAR (7),
     GODINA_POLOVICA_TRAJANJE smallint,
-    GODINA_POLOVICA_ZADNJI_DAN smallint,
-		PRIMARY KEY (`date_key`)
+    GODINA_POLOVICA_ZADNJI_DAN int,
+		PRIMARY KEY (`DATUM_KEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-SELECT * FROM dimenzija_vrijeme;
 
 delimiter //
 
-drop procedure if exists PopulateDateDimension//
+DROP PROCEDURE IF EXISTS PopulateDateDimension//
 
-CREATE PROCEDURE PopulateDateDimension(BeginDate DATETIME, EndDate DATETIME)
+CREATE PROCEDURE PopulateDateDimension(datum_pocetni DATETIME, datum_krajnji DATETIME)
 BEGIN
 
-    DECLARE DateCounter DATETIME;
-    DECLARE iterator INT DEFAULT 1;
+    DECLARE datum_trenutni DATETIME;
+    DECLARE iterator INT DEFAULT 0;
     DECLARE DAN_U_TJEDNU_NAZIV CHAR(44);
     DECLARE DAN_U_TJEDNU_NAZIV_KRATKI CHAR(12); 
 	DECLARE DAN_U_TJEDNU_NAZIV_BROJ tinyint;
@@ -66,13 +67,13 @@ BEGIN
     DECLARE GODINA_POLOVICA tinyint;
     DECLARE GODINA_POLOVICA_NAZIV CHAR(7);
     DECLARE GODINA_POLOVICA_TRAJANJE smallint;
-	DECLARE GODINA_POLOVICA_ZADNJI_DAN smallint;
+	DECLARE GODINA_POLOVICA_ZADNJI_DAN int;
  
-    SET DateCounter = BeginDate;
+    SET datum_trenutni = datum_pocetni;
    
-    WHILE DateCounter <= EndDate DO
+    WHILE datum_trenutni <= datum_krajnji DO
         
-            SET DAN_U_TJEDNU_NAZIV_BROJ = DAYOFWEEK(DateCounter);
+            SET DAN_U_TJEDNU_NAZIV_BROJ = DAYOFWEEK(datum_trenutni);
             
             IF DAN_U_TJEDNU_NAZIV_BROJ = 1 THEN SET DAN_U_TJEDNU_NAZIV_BROJ = 7; 		SET DAN_U_TJEDNU_NAZIV = 'Nedjelja';	SET DAN_U_TJEDNU_NAZIV_KRATKI = 'NED';
             ELSEIF DAN_U_TJEDNU_NAZIV_BROJ = 2 THEN SET DAN_U_TJEDNU_NAZIV_BROJ = 1;	SET DAN_U_TJEDNU_NAZIV = 'Ponedjeljak';	SET DAN_U_TJEDNU_NAZIV_KRATKI = 'PON';
@@ -83,12 +84,12 @@ BEGIN
             ELSEIF DAN_U_TJEDNU_NAZIV_BROJ = 7 THEN SET DAN_U_TJEDNU_NAZIV_BROJ = 6;	SET DAN_U_TJEDNU_NAZIV = 'Subota';		SET DAN_U_TJEDNU_NAZIV_KRATKI = 'SUB';
             END IF;
 
-			SET DAN_U_MJESECU = DAYOFMONTH(DateCounter);
-			SET DAN_U_GODINI = DAYOFYEAR (DateCounter);
-			SET TJEDAN_U_GODINI_BROJ = WEEK(DateCounter, 1);
-            SET TJEDAN_I_GODINA = CONCAT (TJEDAN_U_GODINI_BROJ, '-', YEAR(DateCounter));
+			SET DAN_U_MJESECU = DAYOFMONTH(datum_trenutni);
+			SET DAN_U_GODINI = DAYOFYEAR (datum_trenutni);
+			SET TJEDAN_U_GODINI_BROJ = WEEK(datum_trenutni, 1);
+            SET TJEDAN_I_GODINA = CONCAT (TJEDAN_U_GODINI_BROJ, '-', YEAR(datum_trenutni));
             
-            SET MJESEC_BROJ = MONTH(DateCounter);
+            SET MJESEC_BROJ = MONTH(datum_trenutni);
             IF MJESEC_BROJ = 1 THEN SET MJESEC_GODINA_KRATKO_CRTA = 'SIJ'; 			SET MJESEC_GODINA_KRATKO = 'Sij '; 		SET MJESEC_GODINA_DUGO = 'Siječanj ';	SET MJESEC_KRATKO = 'Sij';		SET MJESEC_DUGO = 'Siječanj';
             ELSEIF MJESEC_BROJ = 2 THEN SET MJESEC_GODINA_KRATKO_CRTA = 'VELJ'; 	SET MJESEC_GODINA_KRATKO = 'Velj '; 	SET MJESEC_GODINA_DUGO = 'Veljača ';	SET MJESEC_KRATKO = 'Velj';		SET MJESEC_DUGO = 'Veljača';
             ELSEIF MJESEC_BROJ = 3 THEN SET MJESEC_GODINA_KRATKO_CRTA = 'OŽU'; 		SET MJESEC_GODINA_KRATKO = 'Ožu '; 		SET MJESEC_GODINA_DUGO = 'Ožujak ';		SET MJESEC_KRATKO = 'Ožu';		SET MJESEC_DUGO = 'Ožujak';
@@ -102,31 +103,28 @@ BEGIN
             ELSEIF MJESEC_BROJ = 11 THEN SET MJESEC_GODINA_KRATKO_CRTA = 'STU'; 	SET MJESEC_GODINA_KRATKO = 'Stu '; 		SET MJESEC_GODINA_DUGO = 'Studeni ';	SET MJESEC_KRATKO = 'Stu';		SET MJESEC_DUGO = 'Studeni';
             ELSEIF MJESEC_BROJ = 12 THEN SET MJESEC_GODINA_KRATKO_CRTA = 'PRO'; 	SET MJESEC_GODINA_KRATKO = 'Pro '; 		SET MJESEC_GODINA_DUGO = 'Prosinac ';	SET MJESEC_KRATKO = 'Pro';		SET MJESEC_DUGO = 'Prosinac';
 			END IF;
-            SET MJESEC_GODINA_KRATKO_CRTA = CONCAT (MJESEC_GODINA_KRATKO_CRTA, '-', YEAR(DateCounter));
-            SET MJESEC_GODINA_KRATKO = CONCAT (MJESEC_GODINA_KRATKO,' ', YEAR(DateCounter));
-            SET MJESEC_GODINA_DUGO = CONCAT (MJESEC_GODINA_DUGO, ' ', YEAR(DateCounter));
+            SET MJESEC_GODINA_KRATKO_CRTA = CONCAT (MJESEC_GODINA_KRATKO_CRTA, '-', YEAR(datum_trenutni));
+            SET MJESEC_GODINA_KRATKO = CONCAT (MJESEC_GODINA_KRATKO,' ', YEAR(datum_trenutni));
+            SET MJESEC_GODINA_DUGO = CONCAT (MJESEC_GODINA_DUGO, ' ', YEAR(datum_trenutni));
             
-            SET MJESEC_U_DANIMA = DAY(LAST_DAY(DateCounter)) ;
-			SET MJESEC_ZADNJI_DAN_GODINE = DAYOFYEAR (LAST_DAY(DateCounter));
-            SET KVARTAL = quarter(DateCounter);
-            SET KVARTAL_TRAJANJE = DAYOFYEAR(MAKEDATE(YEAR(DateCounter), 1) + INTERVAL QUARTER(DateCounter) QUARTER - INTERVAL 1 DAY) - DAYOFYEAR(MAKEDATE(YEAR(DateCounter), 1) + INTERVAL QUARTER(DateCounter) QUARTER - INTERVAL 1 Quarter) + 1;
-            SET KVARTAL_ZADNJI_DAN = DAYOFYEAR(MAKEDATE(YEAR(DateCounter), 1) + INTERVAL QUARTER(DateCounter) QUARTER - INTERVAL 1 DAY);
-            SET GODINA = YEAR(DateCounter);
-            SET GODINA_U_DANIMA = DAYOFYEAR(LAST_DAY(MAKEDATE(YEAR(DateCounter), 365)));
-            SET GODINA_POLOVICA = CEILING (quarter(DateCounter)/2) ;
+            SET MJESEC_U_DANIMA = DAY(LAST_DAY(datum_trenutni)) ;
+			SET MJESEC_ZADNJI_DAN_GODINE = DAYOFYEAR (LAST_DAY(datum_trenutni));
+            SET KVARTAL = quarter(datum_trenutni);
+            SET KVARTAL_TRAJANJE = DAYOFYEAR(MAKEDATE(YEAR(datum_trenutni), 1) + INTERVAL QUARTER(datum_trenutni) QUARTER - INTERVAL 1 DAY) - DAYOFYEAR(MAKEDATE(YEAR(datum_trenutni), 1) + INTERVAL QUARTER(datum_trenutni) QUARTER - INTERVAL 1 Quarter) + 1;
+            SET KVARTAL_ZADNJI_DAN = DAYOFYEAR(MAKEDATE(YEAR(datum_trenutni), 1) + INTERVAL QUARTER(datum_trenutni) QUARTER - INTERVAL 1 DAY);
+            SET GODINA = YEAR(datum_trenutni);
+            SET GODINA_U_DANIMA = DAYOFYEAR(LAST_DAY(MAKEDATE(YEAR(datum_trenutni), 365)));
+            SET GODINA_POLOVICA = CEILING (quarter(datum_trenutni)/2) ;
             SET GODINA_POLOVICA_NAZIV = CONCAT('H', GODINA_POLOVICA, '-', GODINA);
+            SET GODINA_POLOVICA_ZADNJI_DAN = DATEDIFF (DATE_ADD(MAKEDATE(YEAR(datum_trenutni), 1), INTERVAL (GODINA_POLOVICA * 6) MONTH ) - INTERVAL 1 DAY, datum_pocetni) + 1;
+			SET GODINA_POLOVICA_TRAJANJE =   DATEDIFF (DATE_ADD(MAKEDATE(YEAR(datum_trenutni), 1), INTERVAL (GODINA_POLOVICA * 6) MONTH ) - INTERVAL 1 DAY,        			DATE_ADD(MAKEDATE(YEAR(datum_trenutni), 1), INTERVAL ((GODINA_POLOVICA-1) * 6) MONTH )) + 1 ;   
             
-            
-            SET GODINA_POLOVICA_TRAJANJE = NULL;
-            SET GODINA_POLOVICA_ZADNJI_DAN = NULL;
-            #SET GODINA_POLOVICA_TRAJANJE = DAYOFYEAR(LAST_DAY(MAKEDATE(YEAR(DateCounter), INTERVAL 6 MONTH - INTERVAL 1 DAY))) -    DAYOFYEAR(MAKEDATE(YEAR(DateCounter), 1));   # POPRAVITI
-			#SET GODINA_POLOVICA_ZADNJI_DAN = DAYOFYEAR(LAST_DAY(MAKEDATE(YEAR(DateCounter), INTERVAL 6 MONTH - INTERVAL 1 DAY)));
 
 			SET iterator = iterator + 1 ;
 			INSERT INTO dimenzija_vrijeme VALUES (
             		iterator,
-                    DateCounter,
-					CONCAT(CAST(YEAR(DateCounter) AS CHAR(4)),DATE_FORMAT(DateCounter,'%m'),DATE_FORMAT(DateCounter,'%d')),
+                    datum_trenutni,
+					CONCAT(CAST(YEAR(datum_trenutni) AS CHAR(4)),DATE_FORMAT(datum_trenutni,'%m'),DATE_FORMAT(datum_trenutni,'%d')),
                     DAN_U_TJEDNU_NAZIV,
                     DAN_U_TJEDNU_NAZIV_KRATKI,
                     DAN_U_TJEDNU_NAZIV_BROJ,
@@ -153,12 +151,12 @@ BEGIN
                     GODINA_POLOVICA_ZADNJI_DAN
             );
 
-            SET DateCounter = DATE_ADD(DateCounter, INTERVAL 1 DAY);
+            SET datum_trenutni = DATE_ADD(datum_trenutni, INTERVAL 1 DAY);
       END WHILE;
 END//
 
 CALL `world`.`PopulateDateDimension`(
 			DATE_ADD(DATE_ADD(MAKEDATE(2000, 1), INTERVAL (1)-1 MONTH), INTERVAL (1)-1 DAY), 
-            DATE_ADD(DATE_ADD(MAKEDATE(2001, 1), INTERVAL (3)-1 MONTH), INTERVAL (1)-1 DAY))//
+            DATE_ADD(DATE_ADD(MAKEDATE(2100, 1), INTERVAL (1)-1 MONTH), INTERVAL (1)-1 DAY))//
 
-SELECT * FROM dimenzija_vrijeme;
+#SELECT * FROM dimenzija_vrijeme LIMIT 50000;

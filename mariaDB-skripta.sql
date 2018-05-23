@@ -1,8 +1,38 @@
-# mysql skripta za generiranje vremenske dimenzije
-# mysql script for generating time dimension
+# mariaDB skripta za generiranje vremenske dimenzije
+# mariaDB script for generating time dimension
 # @ matko soric
 
+# data/my.ini on windows OR /etc/mysql/my.cnf on ubuntu must have:
+# character_set_server=utf8
+# collation_server=utf8_general_ci
+# under [mysqld] section
+# also, connection properties have to be properly set
+
+# DIAGNOSTICS:
+
+/*
+select VERSION ();
+
+SHOW CHARACTER set;
+
+SHOW VARIABLES WHERE Variable_name LIKE 'character\_set\_%' OR Variable_name LIKE 'collation%';
+show variables like '%colla%';
+
+SELECT
+  `tables`.`TABLE_NAME`,
+  `collations`.`character_set_name`
+FROM
+  `information_schema`.`TABLES` AS `tables`,
+  `information_schema`.`COLLATION_CHARACTER_SET_APPLICABILITY` AS `collations`
+WHERE
+  `tables`.`table_schema` = DATABASE()
+  AND `collations`.`collation_name` = `tables`.`table_collation`
+
+*/
+
 DROP TABLE IF EXISTS dimenzija_vrijeme;
+
+SET NAMES 'utf8' COLLATE 'utf8_general_ci';
 
 CREATE TABLE dimenzija_vrijeme(
 	id int,
@@ -33,11 +63,13 @@ CREATE TABLE dimenzija_vrijeme(
     GODINA_POLOVICA_TRAJANJE smallint,
     GODINA_POLOVICA_ZADNJI_DAN int,
 		PRIMARY KEY (`DATUM_KEY`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) CHARACTER SET 'utf8' 
+  COLLATE 'utf8_general_ci'
+  ;
 
 delimiter //
 
-DROP PROCEDURE IF EXISTS GenerirajPodatke//
+DROP PROCEDURE IF EXISTS GenerirajPodatke;
 
 CREATE PROCEDURE GenerirajPodatke(datum_pocetni DATETIME, datum_krajnji DATETIME)
 BEGIN
@@ -105,7 +137,7 @@ BEGIN
 			END IF;
             SET MJESEC_GODINA_KRATKO_CRTA = CONCAT (MJESEC_GODINA_KRATKO_CRTA, '-', YEAR(datum_trenutni));
             SET MJESEC_GODINA_KRATKO = CONCAT (MJESEC_GODINA_KRATKO,' ', YEAR(datum_trenutni));
-            SET MJESEC_GODINA_DUGO = CONCAT (MJESEC_GODINA_DUGO, ' ', YEAR(datum_trenutni));
+            SET MJESEC_GODINA_DUGO = CONCAT (MJESEC_GODINA_DUGO,' ', YEAR(datum_trenutni));
             
             SET MJESEC_U_DANIMA = DAY(LAST_DAY(datum_trenutni)) ;
 			SET MJESEC_ZADNJI_DAN_GODINE = DAYOFYEAR (LAST_DAY(datum_trenutni));
@@ -119,7 +151,6 @@ BEGIN
             SET GODINA_POLOVICA_ZADNJI_DAN = DATEDIFF (DATE_ADD(MAKEDATE(YEAR(datum_trenutni), 1), INTERVAL (GODINA_POLOVICA * 6) MONTH ) - INTERVAL 1 DAY, datum_pocetni) + 1;
 			SET GODINA_POLOVICA_TRAJANJE =   DATEDIFF (DATE_ADD(MAKEDATE(YEAR(datum_trenutni), 1), INTERVAL (GODINA_POLOVICA * 6) MONTH ) - INTERVAL 1 DAY,        			DATE_ADD(MAKEDATE(YEAR(datum_trenutni), 1), INTERVAL ((GODINA_POLOVICA-1) * 6) MONTH )) + 1 ;   
             
-
 			SET iterator = iterator + 1 ;
 			INSERT INTO dimenzija_vrijeme VALUES (
             		iterator,
@@ -153,10 +184,10 @@ BEGIN
 
             SET datum_trenutni = DATE_ADD(datum_trenutni, INTERVAL 1 DAY);
       END WHILE;
-END//
+end;
 
-CALL `world`.`GenerirajPodatke`(
+CALL `mysql`.`GenerirajPodatke`(
 			DATE_ADD(DATE_ADD(MAKEDATE(2000, 1), INTERVAL (1)-1 MONTH), INTERVAL (1)-1 DAY), 
-            DATE_ADD(DATE_ADD(MAKEDATE(2100, 1), INTERVAL (1)-1 MONTH), INTERVAL (1)-1 DAY))//
+            DATE_ADD(DATE_ADD(MAKEDATE(2002, 1), INTERVAL (1)-1 MONTH), INTERVAL (1)-1 DAY));
 
 #SELECT * FROM dimenzija_vrijeme LIMIT 50000;
